@@ -1,0 +1,38 @@
+# 🔒 Ambiente virtual
+venv/
+.env
+
+# 🧠 Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 🧪 Testes / cache
+.pytest_cache/
+.coverage
+
+# 📦 Build / dist
+build/
+dist/
+*.egg-info/
+
+# 💻 Sistema operacional
+.DS_Store
+Thumbs.db
+
+# 🧾 Logs
+*.log
+
+# 🧠 IDEs / editores
+.vscode/
+.idea/
+
+# 🔥 Uvicorn / FastAPI
+*.sqlite3
+
+# 📂 Uploads (se usar no futuro)
+uploads/
+
+# 🧠 Jupyter (se usar)
+.ipynb_checkpoints
