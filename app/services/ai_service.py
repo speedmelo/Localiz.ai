@@ -1,14 +1,13 @@
+# app/services/ai_service.py
 import json
 import os
 import re
 from typing import Any
 
 from google import genai
-
 from app.core.logging import get_logger
 
 logger = get_logger("ia_service")
-
 
 LOCALIZA_REQUIREMENTS_PROMPT = """
 agora para deixar ela 100% do que a localiza quer!!! Ela quer esses requisitos
@@ -23,7 +22,7 @@ Conhecimento em pacote office;
 Capacidade de negociação com o cliente;
 CNH categoria B há, no mínimo, 2 anos.
 • Disponibilidade para atuar nos fins de semana e feriados, escala 6x1
-•Vendas
+• Vendas
 Descrição da vaga / AUXILIAR OPERAÇÃO
 CNH categoria B há, no mínimo, 1 ano
 • Ensino Médio completo
@@ -38,37 +37,34 @@ Disponibilidade para atuar em escalas aos sábados, carga horária de 6h por dia
 Flexibilidade para trabalhar em diferentes turnos (manhã ou tarde), conforme necessidade da operação.
 """
 
+class AIService:
+    @staticmethod
+    def get_client() -> genai.Client:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY não configurada no .env")
+        return genai.Client(api_key=api_key)
 
-def get_client() -> genai.Client:
-    api_key = os.getenv("GEMINI_API_KEY")
+    @staticmethod
+    def safe_json(texto: str) -> dict[str, Any]:
+        try:
+            return json.loads(texto)
+        except json.JSONDecodeError:
+            json_match = re.search(r"\{.*\}", texto, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+        logger.warning("Falha ao parsear JSON da IA.")
+        return {
+            "erro": "Falha ao interpretar resposta da IA",
+            "resposta_bruta": texto,
+        }
 
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY não configurada no .env")
-
-    return genai.Client(api_key=api_key)
-
-
-def safe_json(texto: str) -> dict[str, Any]:
-    try:
-        return json.loads(texto)
-    except json.JSONDecodeError:
-        json_match = re.search(r"\{.*\}", texto, re.DOTALL)
-
-        if json_match:
-            try:
-                return json.loads(json_match.group())
-            except json.JSONDecodeError:
-                pass
-
-    logger.warning("Falha ao parsear JSON da IA.")
-    return {
-        "erro": "Falha ao interpretar resposta da IA",
-        "resposta_bruta": texto,
-    }
-
-
-def build_prompt(curriculo_texto: str) -> str:
-    return f"""
+    @staticmethod
+    def build_prompt(curriculo_texto: str) -> str:
+        return f"""
 Você é uma IA especialista em Talent Intelligence, recrutamento, seleção e análise de aderência para vagas da Localiza.
 
 Sua função é analisar o currículo do candidato e identificar qual vaga possui maior aderência.
@@ -146,29 +142,25 @@ RETORNE APENAS UM JSON VÁLIDO, sem markdown, sem comentários e sem texto fora 
 }}
 """
 
+    @classmethod
+    async def analisar_candidato(cls, curriculo_texto: str) -> dict[str, Any]:
+        client = cls.get_client()
+        prompt = cls.build_prompt(curriculo_texto)
 
-async def analisar_candidato(curriculo_texto: str) -> dict[str, Any]:
-    client = get_client()
-    prompt = build_prompt(curriculo_texto)
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-        )
+            texto_resposta = response.text or ""
+            resultado = cls.safe_json(texto_resposta)
+            logger.info("Análise de candidato concluída com sucesso.")
+            return resultado
 
-        texto_resposta = response.text or ""
-
-        resultado = safe_json(texto_resposta)
-
-        logger.info("Análise de candidato concluída com sucesso.")
-
-        return resultado
-
-    except Exception as exc:
-        logger.exception("Erro ao analisar candidato com Gemini.")
-
-        return {
-            "erro": "Erro ao analisar candidato",
-            "detalhe": str(exc),
-        }
+        except Exception as exc:
+            logger.exception("Erro ao analisar candidato com Gemini.")
+            return {
+                "erro": "Erro ao analisar candidato",
+                "detalhe": str(exc),
+            }

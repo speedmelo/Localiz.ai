@@ -1,4 +1,4 @@
-# database.py - Versão Otimizada
+# app/database.py - Versão Otimizada
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -16,7 +16,7 @@ engine: AsyncEngine = create_async_engine(
     echo=settings.DEBUG,
     pool_pre_ping=True,
     pool_recycle=1800,
-    pool_size=20,           # Ajuste conforme necessidade
+    pool_size=20,
     max_overflow=10,
 )
 

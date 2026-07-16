@@ -1,44 +1,23 @@
-from app.schemas.auth import LoginResponse, Token, TokenPayload
-from app.schemas.user import UserCreate, UserLogin, UserResponse, UserUpdate
+# app/schemas/__init__.py
+
+# Importações dos schemas
+from app.schemas.user_schema import UserCreate, UserLogin, Token, UserResponse
 from app.schemas.candidate import (
     CandidateAnalysisRequest,
     CandidateComparisonRequest,
     CandidateUploadResponse,
 )
-from app.schemas.vacancy import VacancyCreate, VacancyRequirement, VacancyResponse
-from app.schemas.match import MatchRequest, MatchResponse
-from app.schemas.interview import InterviewQuestion, InterviewQuestions
-from app.schemas.geolocation import CandidateLocation, NearbyVacancy
-from app.schemas.ai import (
-    AIAnalysisResponse,
-    AIRankingItem,
-    AIRequirementStatus,
-)
-from app.schemas.response import APIResponse, ErrorResponse
+from app.schemas.match_schema import MatchRequest, MatchResponse
+# Adicione outros schemas conforme for criando
 
 __all__ = [
-    "LoginResponse",
-    "Token",
-    "TokenPayload",
     "UserCreate",
     "UserLogin",
+    "Token",
     "UserResponse",
-    "UserUpdate",
     "CandidateAnalysisRequest",
     "CandidateComparisonRequest",
     "CandidateUploadResponse",
-    "VacancyCreate",
-    "VacancyRequirement",
-    "VacancyResponse",
     "MatchRequest",
     "MatchResponse",
-    "InterviewQuestion",
-    "InterviewQuestions",
-    "CandidateLocation",
-    "NearbyVacancy",
-    "AIAnalysisResponse",
-    "AIRankingItem",
-    "AIRequirementStatus",
-    "APIResponse",
-    "ErrorResponse",
 ]

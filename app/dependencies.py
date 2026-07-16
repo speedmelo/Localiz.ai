@@ -1,4 +1,8 @@
-from app.services.ai_service import analisar_candidato
+# app/dependencies.py
+from app.services.ai_service import AIService
 
 def get_ai_service():
-    return analisar_candidato
+    """
+    Retorna o método de análise da IA para ser injetado nos endpoints do FastAPI.
+    """
+    return AIService.analisar_candidato

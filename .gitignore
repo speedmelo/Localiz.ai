@@ -36,3 +36,14 @@ uploads/
 
 # 🧠 Jupyter (se usar)
 .ipynb_checkpoints
+# Frontend
+node_modules/
+dist/
+build/
+
+# Cache do Tailwind
+.tailwind-cache/
+
+# Arquivos temporários
+*.tmp
+*.temp
