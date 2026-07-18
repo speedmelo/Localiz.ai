@@ -116,6 +116,7 @@ SQLAlchemy==2.0.48
 srsly==2.5.3
 starlette==0.52.1
 stripe==15.0.0
+structlog==25.5.0
 tenacity==9.1.4
 thinc==8.3.13
 tqdm==4.67.3
