@@ -1,11 +1,13 @@
 import logging
 from fastapi import FastAPI, Depends, HTTPException, Request, status, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse  # Adicionado FileResponse
+from fastapi.staticfiles import StaticFiles  # Adicionado para servir CSS/JS se necessário
 from contextlib import asynccontextmanager
 import time
 import uuid
 import asyncio
+import os
 
 # ==========================================
 # CORE
@@ -75,6 +77,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Servir arquivos estáticos apenas se a pasta existir (evita quebrar o boot se não houver CSS/JS externos)
+if os.path.exists("app/static"):
+    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 # ==========================================
 # GLOBAL EXCEPTION HANDLERS
 # ==========================================
@@ -143,14 +149,13 @@ async def match_inteligente(
                 curriculo=payload.curriculo,
                 vagas=payload.vagas
             ),
-            timeout=45.0  # Aumentado um pouco
+            timeout=45.0
         )
 
         processing_time = round((time.perf_counter() - start_time) * 1000, 2)
 
         logger.info(f"[{request_id}] Análise concluída com sucesso", extra={"processing_time_ms": processing_time})
 
-        # Notificação em tempo real
         await manager.send_to_room({
             "type": "analysis_completed",
             "request_id": request_id,
@@ -193,10 +198,16 @@ async def health():
     }
 
 
-@app.get("/", tags=["Health"])
+# ==========================================
+# ROTA PRINCIPAL: SERVIR DASHBOARD HTML
+# ==========================================
+@app.get("/", tags=["UI"])
 async def root():
-    return {
-        "message": "🚀 Localiz.ai Talent Intelligence está online",
-        "docs": "/docs",
-        "health": "/health"
-    }
+    # Caminho do index que vimos na árvore de arquivos do seu projeto
+    html_path = "app/templates/index.html"
+    if os.path.exists(html_path):
+        return FileResponse(html_path)
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"success": False, "message": "Dashboard HTML não encontrado na pasta app/templates."}
+    )
