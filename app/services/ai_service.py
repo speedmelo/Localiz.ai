@@ -1,10 +1,10 @@
-# app/services/ai_service.py
 import json
 import os
 import re
 from typing import Any
 
 from google import genai
+from google.genai import types  # Importado para forçar o JSON estrito
 from app.core.logging import get_logger
 
 logger = get_logger("ia_service")
@@ -73,7 +73,12 @@ Use obrigatoriamente os requisitos abaixo como referência principal:
 
 {LOCALIZA_REQUIREMENTS_PROMPT}
 
-REGRAS DE RACIOCÍNIO:
+REGRAS DE RACIOCÍNIO DE GEOLOCALIZAÇÃO (ABRANGÊNCIA EXPANDIDA):
+- O candidato pode NÃO ter preenchido o CEP. Procure ativamente no currículo por nomes de rua, avenidas, bairros, cidade ou estado.
+- Avalie a proximidade e a facilidade de deslocamento do candidato para as filiais operacionais da Localiza com base no endereço textual por extenso encontrado.
+- Caso o endereço mapeado por nome de rua indique alta distância ou inviabilidade de transporte para os turnos da vaga, aponte isso como um ponto fraco ou risco de logística na respectiva vaga.
+
+REGRAS DE RACIOCÍNIO GERAIS:
 - Cada vaga possui necessidades específicas.
 - Não trate todas as vagas como iguais.
 - Compare o candidato contra cada vaga separadamente.
@@ -85,12 +90,12 @@ REGRAS DE RACIOCÍNIO:
 - Explique por que uma vaga ficou melhor ranqueada que outra.
 - Gere perguntas de entrevista para validar pontos incertos.
 - A decisão final sempre deve ser da recrutadora.
-- Nunca de outro score diferente para o mesmo candidato analisado, mantenha o mesmo score pela aderencia do curriculo apresentado no pdf.
+- Nunca dê outro score diferente para o mesmo candidato analisado, mantenha o mesmo score pela aderencia do curriculo apresentado no pdf.
 
 CURRÍCULO DO CANDIDATO:
 {curriculo_texto}
 
-RETORNE APENAS UM JSON VÁLIDO, sem markdown, sem comentários e sem texto fora do JSON:
+RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
 
 {{
   "melhor_vaga": "",
@@ -148,9 +153,13 @@ RETORNE APENAS UM JSON VÁLIDO, sem markdown, sem comentários e sem texto fora 
         prompt = cls.build_prompt(curriculo_texto)
 
         try:
+            # Configuração Sênior: Força o modelo a responder estritamente em JSON válido
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                ),
             )
 
             texto_resposta = response.text or ""
