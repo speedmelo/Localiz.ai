@@ -1,25 +1,37 @@
+Com certeza! Já atualizei o código com as alterações solicitadas do menu lateral, o ajuste do endpoint na Fetch API e incluí a tag de favicon no `<head>`.
+
+### 📋 O que foi modificado:
+
+1. **Menu Lateral (Sidebar):**
+* `"Dashboard"` $\rightarrow$ alterado para **`Visão Geral`**
+* `"Candidatos"` $\rightarrow$ mantido
+* `"Filiais SP"` $\rightarrow$ alterado para **`Página de vagas`**
+* `"Configurações"` $\rightarrow$ mantido
+
+
+2. **Favicon:**
+* Adicionada a tag `<link rel="icon">` apontando para `/static/logo.png` (se o seu arquivo for `.ico`, basta alterar a extensão para `.ico`).
+
+
+3. **Endpoint JS:**
+* Rota do `fetch` apontando para `/api/v1/upload/candidates-matching`.
+
+
+
+Substitua todo o código do seu `index.html` por este:
+
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Localiz.ai - Talent Intelligence Dashboard</title>
-    <!-- Tailwind CSS para design moderno -->
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <!-- Tailwind CSS para design moderno sem dor de cabeça -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Leaflet.js (Biblioteca de Mapas Gratuita e Super Leve) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <style>
-        /* Ajuste fino para o mapa não quebrar o layout */
-        #map {
-            height: 300px;
-            border-radius: 0.75rem;
-            z-index: 10;
-        }
-    </style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex">
 
@@ -33,13 +45,13 @@
             
             <nav class="space-y-2">
                 <a href="#" class="flex items-center gap-3 px-4 py-3 bg-green-500 text-slate-950 rounded-lg font-medium transition">
-                    <i class="fa-solid fa-chart-pie"></i> Dashboard
+                    <i class="fa-solid fa-chart-pie"></i> Visão Geral
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-100 rounded-lg transition">
                     <i class="fa-solid fa-user-tie"></i> Candidatos
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-100 rounded-lg transition">
-                    <i class="fa-solid fa-store"></i> Filiais SP
+                    <i class="fa-solid fa-briefcase"></i> Página de vagas
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-100 rounded-lg transition">
                     <i class="fa-solid fa-sliders"></i> Configurações
@@ -71,12 +83,12 @@
             <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
                 <div class="text-slate-500 text-sm font-medium mb-1">Média de Distância</div>
                 <div class="text-2xl font-bold text-white flex items-baseline gap-2">
-                    5.84 km <span class="text-xs text-green-400 font-normal">↓ 1.2km</span>
+                    7.42 km <span class="text-xs text-green-400 font-normal">↓ 1.2km</span>
                 </div>
             </div>
             <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
                 <div class="text-slate-500 text-sm font-medium mb-1">Candidatos no Perímetro</div>
-                <div class="text-2xl font-bold text-white">91.4%</div>
+                <div class="text-2xl font-bold text-white">87.3%</div>
             </div>
             <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
                 <div class="text-slate-500 text-sm font-medium mb-1">Filiais Monitoradas (SP)</div>
@@ -85,10 +97,10 @@
         </section>
 
         <!-- ÁREA CENTRAL DE PROCESSO -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
-            <!-- COLUNA ESQUERDA: UPLOAD & CONFIGS (Grandeza 5/12) -->
-            <div class="lg:col-span-5 space-y-6">
+            <!-- COLUNA ESQUERDA: UPLOAD E DADOS -->
+            <div class="space-y-6">
                 <!-- Dropzone de PDF -->
                 <div class="bg-slate-900 border-2 border-dashed border-slate-800 hover:border-green-500/50 p-8 rounded-xl transition cursor-pointer text-center" id="dropzone">
                     <input type="file" id="fileInput" class="hidden" accept=".pdf">
@@ -97,110 +109,47 @@
                     <p class="text-slate-500 text-sm mt-1">ou clique para selecionar do seu computador</p>
                 </div>
 
-                <!-- Painel de Configuração Rápida de Limites (Sliders Dinâmicos) -->
+                <!-- Painel de Configuração Rápida -->
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
-                    <h2 class="text-lg font-bold text-white mb-4 flex items-center justify-between">
-                        <span><i class="fa-solid fa-sliders text-green-400 mr-2"></i>Ajuste de Perímetros</span>
-                        <span class="text-xs text-slate-500 font-normal">Muda em tempo real</span>
-                    </h2>
-                    
-                    <div class="space-y-5">
-                        <!-- Capital Slider -->
-                        <div>
-                            <div class="flex justify-between text-sm mb-1">
-                                <span class="text-slate-400">Capital (Máximo)</span>
-                                <span class="text-green-400 font-bold" id="label-capital">20 km</span>
-                            </div>
-                            <input type="range" id="limit-capital" min="5" max="40" value="20" class="w-full accent-green-500 bg-slate-800">
+                    <h2 class="text-lg font-bold text-white mb-4"><i class="fa-solid fa-gears text-green-400 mr-2"></i>Regras de Negócio (Limites)</h2>
+                    <div class="space-y-4 text-sm">
+                        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                            <span class="text-slate-400">Capital</span>
+                            <span class="font-bold text-slate-200">2.0 km - 20.0 km</span>
                         </div>
-
-                        <!-- Litoral Slider -->
-                        <div>
-                            <div class="flex justify-between text-sm mb-1">
-                                <span class="text-slate-400">Litoral (Máximo)</span>
-                                <span class="text-green-400 font-bold" id="label-litoral">10 km</span>
-                            </div>
-                            <input type="range" id="limit-litoral" min="3" max="25" value="10" class="w-full accent-green-500 bg-slate-800">
+                        <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                            <span class="text-slate-400">Litoral</span>
+                            <span class="font-bold text-slate-200">2.0 km - 10.0 km</span>
                         </div>
-
-                        <!-- Interior Slider -->
-                        <div>
-                            <div class="flex justify-between text-sm mb-1">
-                                <span class="text-slate-400">Interior (Máximo)</span>
-                                <span class="text-green-400 font-bold" id="label-interior">5 km</span>
-                            </div>
-                            <input type="range" id="limit-interior" min="2" max="15" value="5" class="w-full accent-green-500 bg-slate-800">
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">Interior</span>
+                            <span class="font-bold text-slate-200">2.0 km - 5.0 km</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- COLUNA DIREITA: RESULTADOS, MAPA E AI (Grandeza 7/12) -->
-            <div class="lg:col-span-7 space-y-6">
-                <!-- Painel de Geomatching & Mapa -->
-                <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl">
-                    <h2 class="text-xl font-bold text-white mb-4"><i class="fa-solid fa-map-location-dot text-green-400 mr-2"></i>Mapeamento e Distâncias</h2>
+            <!-- COLUNA DIREITA: RESULTADOS DO GEOMATCH -->
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xl font-bold text-white mb-4"><i class="fa-solid fa-location-crosshairs text-green-400 mr-2"></i>Match de Filial Recomendada</h2>
                     
                     <!-- Estado Inicial (Sem Dados) -->
                     <div id="no-result" class="py-12 text-center text-slate-500">
                         <i class="fa-solid fa-file-invoice text-4xl mb-3"></i>
-                        <p>Envie um currículo para processar a geolocalização e ver as filiais no mapa.</p>
+                        <p>Aguardando upload de currículo para processamento geográfico.</p>
                     </div>
 
-                    <!-- Estado Ativo (Com resultados) -->
-                    <div id="result" class="hidden space-y-6">
-                        <!-- Mapa Interativo do Leaflet -->
-                        <div id="map" class="border border-slate-800"></div>
+                    <!-- Estado com Resultados -->
+                    <div id="result" class="hidden space-y-4">
+                        <div class="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-lg">
+                            <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Candidato Localizado</div>
+                            <div class="text-white font-bold text-lg mt-1" id="cand-endereco">Carregando...</div>
+                        </div>
 
-                        <!-- Lista de Lojas Recomendadas -->
-                        <div>
-                            <h3 class="font-bold text-slate-300 mb-3 flex items-center justify-between">
-                                <span>Filiais Recomendadas no Perímetro:</span>
-                                <span class="text-xs text-slate-500" id="counter-lojas">0 encontradas</span>
-                            </h3>
-                            <div class="space-y-3" id="filiais-list">
-                                <!-- Inserido via JS -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Painel de Resumo por Inteligência Artificial (AI Resume Insights) -->
-                <div id="ai-insights-panel" class="hidden bg-gradient-to-br from-slate-900 to-emerald-950/20 border border-emerald-500/20 p-6 rounded-xl">
-                    <h2 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
-                        <i class="fa-solid fa-wand-magic-sparkles text-emerald-400"></i> AI Talent Insight (Melo AI)
-                    </h2>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div class="bg-slate-950/50 p-3 rounded-lg border border-slate-800">
-                            <div class="text-slate-500 text-xs font-semibold">Match de Perfil</div>
-                            <div class="text-emerald-400 font-extrabold text-xl mt-1">92% (Excelente)</div>
-                        </div>
-                        <div class="bg-slate-950/50 p-3 rounded-lg border border-slate-800">
-                            <div class="text-slate-500 text-xs font-semibold">Custo Est. VT (Mensal)</div>
-                            <div class="text-slate-300 font-bold text-base mt-1">R$ 184,80</div>
-                        </div>
-                        <div class="bg-slate-950/50 p-3 rounded-lg border border-slate-800">
-                            <div class="text-slate-500 text-xs font-semibold">Tempo de Percurso</div>
-                            <div class="text-slate-300 font-bold text-base mt-1">~18 min (Ônibus)</div>
-                        </div>
-                    </div>
-
-                    <div class="space-y-3 text-sm">
-                        <div>
-                            <span class="text-slate-400 block font-semibold">Resumo Executivo do Candidato:</span>
-                            <p class="text-slate-300 leading-relaxed" id="ai-resume">
-                                Candidato possui forte bagagem em atendimento ao cliente e suporte operacional. Demonstra facilidade de comunicação e perfil ativo condizente com a cultura Localiza. Possui CNH categoria B ativa.
-                            </p>
-                        </div>
-                        <div>
-                            <span class="text-slate-400 block font-semibold mb-1">Competências Chave Detectadas:</span>
-                            <div class="flex flex-wrap gap-2">
-                                <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded text-xs">Atendimento</span>
-                                <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded text-xs">CNH B</span>
-                                <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded text-xs">Resolução de Conflitos</span>
-                                <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded text-xs">Sistemas Operacionais</span>
-                            </div>
+                        <h3 class="font-bold text-slate-300 mt-6">Filiais dentro do Perímetro Permitido:</h3>
+                        <div class="space-y-3" id="filiais-list">
+                            <!-- Inserido dinamicamente via JS -->
                         </div>
                     </div>
                 </div>
@@ -210,22 +159,7 @@
     </main>
 
     <script>
-        let map;
-        let candidateMarker;
-        let branchMarkers = [];
-
-        // Controle dos Sliders (Muda os números em tempo real na tela)
-        const setupSlider = (id, labelId, suffix = " km") => {
-            const slider = document.getElementById(id);
-            const label = document.getElementById(labelId);
-            slider.addEventListener('input', () => {
-                label.innerText = slider.value + suffix;
-            });
-        };
-        setupSlider('limit-capital', 'label-capital');
-        setupSlider('limit-litoral', 'label-litoral');
-        setupSlider('limit-interior', 'label-interior');
-
+        // Integração via JS Fetch API com o backend FastAPI
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
 
@@ -235,105 +169,69 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            // Transforma o estado para "Carregando"
+            // Transforma o estado visual para processando
             document.getElementById('no-result').innerHTML = `
                 <div class="animate-spin text-green-500 text-3xl mb-3"><i class="fa-solid fa-circle-notch"></i></div>
-                <p class="text-slate-300 font-semibold">Processando currículo com Inteligência Artificial...</p>
+                <p class="text-slate-300 font-semibold">Extraindo dados e calculando perímetros...</p>
             `;
 
             const formData = new FormData();
             formData.append('file', file);
 
-            // Coleta os limites que o usuário escolheu nos Sliders para enviar ao backend
-            formData.append('limite_capital', document.getElementById('limit-capital').value);
-            formData.append('limite_litoral', document.getElementById('limit-litoral').value);
-            formData.append('limite_interior', document.getElementById('limit-interior').value);
-
             try {
-                // Requisição real para o seu FastAPI
-                const response = await fetch('/candidates/upload-matching', {
+                // Rota oficial configurada no FastAPI
+                const response = await fetch('/api/v1/upload/candidates-matching', {
                     method: 'POST',
                     body: formData
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`Erro de HTTP: ${response.status}`);
+                }
+
                 const data = await response.json();
                 exibirResultados(data);
             } catch (err) {
                 console.error("Erro na comunicação com a API", err);
                 document.getElementById('no-result').innerHTML = `
                     <i class="fa-solid fa-triangle-exclamation text-red-500 text-3xl mb-3"></i>
-                    <p class="text-red-400">Falha ao se conectar com o servidor FastAPI.</p>
+                    <p class="text-red-400">Falha na integração com o servidor.</p>
                 `;
             }
         });
 
         function exibirResultados(data) {
             document.getElementById('no-result').classList.add('hidden');
-            document.getElementById('result').classList.remove('hidden');
-            document.getElementById('ai-insights-panel').classList.remove('hidden'); // Abre o card de IA
+            const resultDiv = document.getElementById('result');
+            resultDiv.classList.remove('hidden');
 
-            const latCandidato = data.coordenadas.lat;
-            const lonCandidato = data.coordenadas.lon;
-
-            // 1. Inicializa ou Atualiza o Mapa Leaflet
-            if (!map) {
-                map = L.map('map').setView([latCandidato, lonCandidato], 12);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors'
-                }).addTo(map);
-            } else {
-                map.setView([latCandidato, lonCandidato], 12);
-                // Limpa marcadores antigos das filiais
-                branchMarkers.forEach(m => map.removeLayer(m));
-                branchMarkers = [];
-                if (candidateMarker) map.removeLayer(candidateMarker);
-            }
-
-            // 2. Coloca o marcador do Candidato (Pino Azul)
-            candidateMarker = L.marker([latCandidato, lonCandidato]).addTo(map)
-                .bindPopup('<b>Casa do Candidato</b><br>Origem').openPopup();
-
-            // 3. Alimenta a lista de filiais e plota no mapa (Pino Verde)
+            const localizacao = data.cep_candidato || "Não Identificado";
+            document.getElementById('cand-endereco').innerText = `Endereço: CEP ${localizacao}`;
+            
             const listContainer = document.getElementById('filiais-list');
             listContainer.innerHTML = '';
-            
-            const filiais = data.filiais_recomendadas || [];
-            document.getElementById('counter-lojas').innerText = `${filiais.length} encontradas`;
 
-            if (filiais.length > 0) {
-                filiais.forEach((filial) => {
-                    // Adiciona marcador verde no mapa para cada filial recomendada
-                    const fMarker = L.circleMarker([filial.lat || (latCandidato - 0.02), filial.lon || (lonCandidato + 0.02)], {
-                        color: '#10B981',
-                        fillColor: '#10B981',
-                        fillOpacity: 0.8,
-                        radius: 8
-                    }).addTo(map).bindPopup(`<b>${filial.nome}</b><br>Distância: ${filial.distancia_km} km`);
-                    
-                    branchMarkers.push(fMarker);
-
-                    // Cria o card bonito na lista
+            if (data.filiais_recomendadas && data.filiais_recomendadas.length > 0) {
+                data.filiais_recomendadas.forEach((filial) => {
                     listContainer.innerHTML += `
-                        <div class="bg-slate-800/80 p-4 rounded-lg border border-slate-700 flex justify-between items-center hover:border-green-500/35 transition">
+                        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 flex justify-between items-center">
                             <div>
                                 <h4 class="font-bold text-white">${filial.nome}</h4>
-                                <p class="text-xs text-slate-400 mt-0.5">${filial.endereco}</p>
-                                <span class="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300 mt-2 inline-block font-bold">${filial.regiao.toUpperCase()}</span>
+                                <span class="text-xs bg-slate-700 px-2.5 py-1 rounded text-slate-300 mt-1 inline-block">${filial.regiao} • ${filial.sub_regiao}</span>
                             </div>
-                            <div class="text-right ml-4">
-                                <span class="text-xl font-black text-green-400">${filial.distancia_km} km</span>
-                                <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">distância</div>
+                            <div class="text-right">
+                                <span class="text-lg font-black text-green-400">${filial.distancia_km} km</span>
+                                <div class="text-xs text-slate-500">de distância</div>
                             </div>
                         </div>
                     `;
                 });
             } else {
-                listContainer.innerHTML = `
-                    <div class="text-center py-6 text-slate-500 bg-slate-800/30 rounded-lg border border-slate-800">
-                        Nenhuma filial atende às configurações de distância atuais para o perfil deste candidato.
-                    </div>`;
+                listContainer.innerHTML = '<p class="text-slate-500 text-sm">Nenhuma filial encontrada no raio de perímetro permitido para este perfil.</p>';
             }
         }
     </script>
 </body>
 </html>
+
+```

@@ -1,83 +1,138 @@
-# app/api/v1/endpoints/upload.py
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from typing import List
-import json
+# -*- coding: utf-8 -*-
+import time
+import uuid
+from typing import List, Dict, Any
+from fastapi import APIRouter, UploadFile, File, HTTPException, status, Request
 
-from app.services.pdf_service import extrair_texto_pdf
+from app.core.logging import get_logger
+from app.services.pdf_service import extrair_texto_upload_pdf, extrair_linha_endereco
 from app.services.candidate_service import analisar_varios_candidatos
-# Novos imports para o motor geográfico
-from app.services.geo_service import extrair_cep_do_texto, geocodificar, buscar_filiais_no_perimetro
 
+logger = get_logger("upload_api")
 router = APIRouter()
 
+MAX_FILES = 3
+ALLOWED_MIME_TYPES = {"application/pdf"}
 
-@router.post("/curriculos", status_code=200)
-async def upload_curriculos(
-    arquivos: List[UploadFile] = File(...),
-    vagas: str = Form(...)
-):
-    """Upload de múltiplos currículos + análise"""
-    if len(arquivos) > 5:
-        raise HTTPException(400, "Máximo de 5 currículos por requisição")
+def _validar_cabecalho_pdf(upload_file: UploadFile) -> bool:
+    if upload_file.content_type not in ALLOWED_MIME_TYPES:
+        return False
+    return True
 
-    if not vagas:
-        raise HTTPException(400, "Campo 'vagas' é obrigatório")
-
-    # Extrai texto dos PDFs
-    textos = []
-    for arquivo in arquivos:
-        texto = await extrair_texto_pdf(arquivo)
-        if not texto or len(texto.strip()) < 50:
-            raise HTTPException(400, f"Falha ao extrair texto do arquivo: {arquivo.filename}")
-        textos.append(texto)
-
-    # Converte vagas de JSON string para dict
-    try:
-        vagas_json = json.loads(vagas)
-    except json.JSONDecodeError:
-        raise HTTPException(400, "Formato inválido no campo 'vagas' (deve ser JSON)")
-
-    # Análise completa
-    resultado = await analisar_varios_candidatos(textos, vagas_json)
-
-    return resultado
-
-
-@router.post("/matching", status_code=200)
+# A rota fica limpa aqui porque o router.py já coloca o /upload no prefixo!
+@router.post(
+    "/candidates-matching",
+    status_code=status.HTTP_200_OK,
+    summary="Upload e Matching Inteligente de Currículos",
+    description="Processa até 3 PDFs em paralelo, extrai localização e executa o Matching de IA Localiza."
+)
 async def upload_matching(
-    file: UploadFile = File(...),
-    limite_capital: float = Form(20.0),
-    limite_litoral: float = Form(10.0),
-    limite_interior: float = Form(5.0)
-):
+    request: Request,
+    files: List[UploadFile] = File(..., description="Lista de arquivos PDF (Máximo 3)")
+) -> Dict[str, Any]:
     """
-    Rota do Dashboard: Recebe um único currículo em PDF, extrai o CEP,
-    converte em coordenadas e busca as filiais da Localiza no perímetro dinâmico.
+    Endpoint Enterprise de Atração e Seleção de Talentos.
+    A URL final no servidor será: /api/v1/upload/candidates-matching
     """
-    # 1. Extrai o texto do PDF usando o seu serviço existente
-    texto_curriculo = await extrair_texto_pdf(file)
-    if not texto_curriculo or len(texto_curriculo.strip()) < 50:
-        raise HTTPException(400, "Falha ao extrair texto ou PDF muito curto.")
+    start_time = time.perf_counter()
+    request_id = str(uuid.uuid4())
 
-    # 2. Busca o CEP usando a nossa regex do GeoService
-    cep = extrair_cep_do_texto(texto_curriculo)
-    if not cep:
-        raise HTTPException(422, "Nenhum CEP válido foi identificado no texto do currículo.")
+    logger.info(
+        f"[{request_id}] Recebida requisição de upload", 
+        extra={"total_arquivos": len(files)}
+    )
 
-    # 3. Geocodifica o CEP para obter Lat/Lon
-    coordenadas = await geocodificar(cep)
-    if not coordenadas:
-        raise HTTPException(400, f"Não foi possível obter coordenadas para o CEP: {cep}")
+    if not files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nenhum arquivo foi enviado."
+        )
 
-    # 4. Filtra as agências da Localiza no perímetro do candidato
-    # Passamos os limites coletados dos sliders do dashboard
-    filiais = await buscar_filiais_no_perimetro(coordenadas["lat"], coordenadas["lon"])
+    if len(files) > MAX_FILES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Limite excedido. Envie no máximo {MAX_FILES} currículos por lote."
+        )
 
-    # Se você quiser filtrar as filiais usando estritamente os parâmetros que vieram da tela (limite_capital, etc.)
-    # você pode aplicar um filtro extra aqui ou mapear os limites na função buscar_filiais_no_perimetro!
-    
-    return {
-        "cep_candidato": cep,
-        "coordenadas": coordenadas,
-        "filiais_recomendadas": filiais
-    }
+    textos_processados: List[str] = []
+    enderecos_mapeados: List[str] = []
+    metadata_arquivos: List[Dict[str, Any]] = []
+
+    for index, file in enumerate(files, start=1):
+        filename = getattr(file, "filename", f"arquivo_{index}.pdf")
+
+        if not _validar_cabecalho_pdf(file):
+            logger.warning(f"[{request_id}] Arquivo rejeitado por formato inválido: {filename}")
+            metadata_arquivos.append({
+                "filename": filename,
+                "status": "rejected",
+                "motivo": "Formato inválido. Apenas arquivos PDF são aceitos."
+            })
+            continue
+
+        try:
+            texto_extraido = await extrair_texto_upload_pdf(file)
+            
+            if not texto_extraido or not texto_extraido.strip():
+                logger.warning(f"[{request_id}] PDF sem conteúdo legível: {filename}")
+                metadata_arquivos.append({
+                    "filename": filename,
+                    "status": "warning",
+                    "motivo": "Arquivo legível, porém nenhum texto selecionável foi extraído."
+                })
+                continue
+
+            endereco = extrair_linha_endereco(texto_extraido)
+            
+            textos_processados.append(texto_extraido)
+            enderecos_mapeados.append(endereco)
+
+            metadata_arquivos.append({
+                "filename": filename,
+                "status": "success",
+                "bytes_lidos": len(texto_extraido),
+                "endereco_identificado": endereco
+            })
+
+        except Exception as exc:
+            logger.error(f"[{request_id}] Falha ao ler PDF {filename}: {str(exc)}", exc_info=True)
+            metadata_arquivos.append({
+                "filename": filename,
+                "status": "error",
+                "motivo": "Falha na leitura interna da estrutura do PDF."
+            })
+
+    if not textos_processados:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Nenhum dos currículos fornecidos continha texto válido para análise."
+        )
+
+    try:
+        resultado_ia = await analisar_varios_candidatos(curriculos=textos_processados)
+
+        elapsed_time_ms = round((time.perf_counter() - start_time) * 1000, 2)
+
+        logger.info(
+            f"[{request_id}] Lote processado com sucesso",
+            extra={"tempo_ms": elapsed_time_ms, "candidatos_analisados": len(textos_processados)}
+        )
+
+        return {
+            "success": True,
+            "request_id": request_id,
+            "processing_time_ms": elapsed_time_ms,
+            "summary": {
+                "total_recebidos": len(files),
+                "total_analisados": len(textos_processados),
+                "arquivos": metadata_arquivos
+            },
+            "data": resultado_ia
+        }
+
+    except Exception as exc:
+        logger.error(f"[{request_id}] Erro crítico no pipeline de IA: {str(exc)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Falha interna ao processar a Inteligência de Talentos."
+        )
