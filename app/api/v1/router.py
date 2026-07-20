@@ -6,13 +6,13 @@ from app.api.v1.endpoints import (
     auth,
     match,
     upload,
-)
-
-# 2. Imports dos arquivos que estão SOLTOS diretamente na pasta 'v1'
-from app.api.v1 import (
-    chat,
     interview,
     video,
+)
+
+# 2. Imports dos arquivos que permanecem diretamente na pasta 'v1'
+from app.api.v1 import (
+    chat,
 )
 
 # ====================== API PRINCIPAL v1 ======================
