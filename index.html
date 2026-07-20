@@ -1,35 +1,10 @@
-Com certeza! Já atualizei o código com as alterações solicitadas do menu lateral, o ajuste do endpoint na Fetch API e incluí a tag de favicon no `<head>`.
-
-### 📋 O que foi modificado:
-
-1. **Menu Lateral (Sidebar):**
-* `"Dashboard"` $\rightarrow$ alterado para **`Visão Geral`**
-* `"Candidatos"` $\rightarrow$ mantido
-* `"Filiais SP"` $\rightarrow$ alterado para **`Página de vagas`**
-* `"Configurações"` $\rightarrow$ mantido
-
-
-2. **Favicon:**
-* Adicionada a tag `<link rel="icon">` apontando para `/static/logo.png` (se o seu arquivo for `.ico`, basta alterar a extensão para `.ico`).
-
-
-3. **Endpoint JS:**
-* Rota do `fetch` apontando para `/api/v1/upload/candidates-matching`.
-
-
-
-Substitua todo o código do seu `index.html` por este:
-
-```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Localiz.ai - Talent Intelligence Dashboard</title>
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/static/logo.png">
-    <!-- Tailwind CSS para design moderno sem dor de cabeça -->
+    <!-- Tailwind CSS para design moderno -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -45,13 +20,13 @@ Substitua todo o código do seu `index.html` por este:
             
             <nav class="space-y-2">
                 <a href="#" class="flex items-center gap-3 px-4 py-3 bg-green-500 text-slate-950 rounded-lg font-medium transition">
-                    <i class="fa-solid fa-chart-pie"></i> Visão Geral
+                    <i class="fa-solid fa-chart-pie"></i> Dashboard
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-100 rounded-lg transition">
                     <i class="fa-solid fa-user-tie"></i> Candidatos
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-100 rounded-lg transition">
-                    <i class="fa-solid fa-briefcase"></i> Página de vagas
+                    <i class="fa-solid fa-store"></i> Filiais SP
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-100 rounded-lg transition">
                     <i class="fa-solid fa-sliders"></i> Configurações
@@ -144,7 +119,7 @@ Substitua todo o código do seu `index.html` por este:
                     <div id="result" class="hidden space-y-4">
                         <div class="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-lg">
                             <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Candidato Localizado</div>
-                            <div class="text-white font-bold text-lg mt-1" id="cand-endereco">Carregando...</div>
+                            <div class="text-white font-bold text-lg mt-1" id="cand-endereco">Endereço: CEP Não Identificado</div>
                         </div>
 
                         <h3 class="font-bold text-slate-300 mt-6">Filiais dentro do Perímetro Permitido:</h3>
@@ -159,18 +134,44 @@ Substitua todo o código do seu `index.html` por este:
     </main>
 
     <script>
-        // Integração via JS Fetch API com o backend FastAPI
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
 
+        // Handlers de Clique e Drag & Drop
         dropzone.addEventListener('click', () => fileInput.click());
 
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('border-green-500');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('border-green-500');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('border-green-500');
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                processarUpload(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                processarUpload(e.target.files[0]);
+            }
+        });
+
+        async function processarUpload(file) {
             if (!file) return;
 
-            // Transforma o estado visual para processando
-            document.getElementById('no-result').innerHTML = `
+            // Restaura o visual para carregamento
+            document.getElementById('result').classList.add('hidden');
+            const noResult = document.getElementById('no-result');
+            noResult.classList.remove('hidden');
+            noResult.innerHTML = `
                 <div class="animate-spin text-green-500 text-3xl mb-3"><i class="fa-solid fa-circle-notch"></i></div>
                 <p class="text-slate-300 font-semibold">Extraindo dados e calculando perímetros...</p>
             `;
@@ -179,48 +180,52 @@ Substitua todo o código do seu `index.html` por este:
             formData.append('file', file);
 
             try {
-                // Rota oficial configurada no FastAPI
+                // Rota padronizada v1 do FastAPI
                 const response = await fetch('/api/v1/upload/candidates-matching', {
                     method: 'POST',
                     body: formData
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`Erro de HTTP: ${response.status}`);
+                    throw new Error(`Erro de rede ou servidor: ${response.status}`);
                 }
 
                 const data = await response.json();
                 exibirResultados(data);
             } catch (err) {
                 console.error("Erro na comunicação com a API", err);
-                document.getElementById('no-result').innerHTML = `
+                noResult.innerHTML = `
                     <i class="fa-solid fa-triangle-exclamation text-red-500 text-3xl mb-3"></i>
-                    <p class="text-red-400">Falha na integração com o servidor.</p>
+                    <p class="text-red-400">Falha ao processar arquivo no servidor.</p>
+                    <p class="text-xs text-slate-500 mt-1">Verifique os logs ou tente outro arquivo PDF.</p>
                 `;
             }
-        });
+        }
 
         function exibirResultados(data) {
             document.getElementById('no-result').classList.add('hidden');
             const resultDiv = document.getElementById('result');
             resultDiv.classList.remove('hidden');
 
-            const localizacao = data.cep_candidato || "Não Identificado";
-            document.getElementById('cand-endereco').innerText = `Endereço: CEP ${localizacao}`;
+            // Mapeamento resiliente de CEP
+            const cep = data.cep_candidato || data.cep || (data.data && data.data.cep) || "Não Identificado";
+            document.getElementById('cand-endereco').innerText = `Endereço: CEP ${cep}`;
             
             const listContainer = document.getElementById('filiais-list');
             listContainer.innerHTML = '';
 
-            if (data.filiais_recomendadas && data.filiais_recomendadas.length > 0) {
-                data.filiais_recomendadas.forEach((filial) => {
+            const filiais = data.filiais_recomendadas || (data.data && data.data.filiais_recomendadas) || [];
+
+            if (filiais.length > 0) {
+                filiais.forEach((filial) => {
                     listContainer.innerHTML += `
                         <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 flex justify-between items-center">
                             <div>
-                                <h4 class="font-bold text-white">${filial.nome}</h4>
-                                <span class="text-xs bg-slate-700 px-2.5 py-1 rounded text-slate-300 mt-1 inline-block">${filial.regiao} • ${filial.sub_regiao}</span>
+                                <h4 class="font-bold text-white">${filial.nome || 'Filial Localiza'}</h4>
+                                <span class="text-xs bg-slate-700 px-2.5 py-1 rounded text-slate-300 mt-1 inline-block">${filial.regiao || 'SP'} • ${filial.sub_regiao || 'Geral'}</span>
                             </div>
                             <div class="text-right">
-                                <span class="text-lg font-black text-green-400">${filial.distancia_km} km</span>
+                                <span class="text-lg font-black text-green-400">${filial.distancia_km ?? 'N/A'} km</span>
                                 <div class="text-xs text-slate-500">de distância</div>
                             </div>
                         </div>
@@ -233,5 +238,3 @@ Substitua todo o código do seu `index.html` por este:
     </script>
 </body>
 </html>
-
-```
