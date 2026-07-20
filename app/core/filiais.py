@@ -40,6 +40,27 @@ AGENCIAS_LOCALIZA_SP = {
             {"nome": "Localiza Lapa", "endereco": "Avenida Ermano Marchetti, 800", "lat": -23.5180, "lon": -46.7010}
         ]
     },
+    "GRANDE_SAO_PAULO": {
+        "ABC_PAULISTA": [
+            {"nome": "Localiza Santo André - Centro", "endereco": "Avenida Industrial, 800", "lat": -23.6512, "lon": -46.5321},
+            {"nome": "Localiza São Bernardo do Campo", "endereco": "Avenida Pereira Barreto, 1500", "lat": -23.6740, "lon": -46.5490},
+            {"nome": "Localiza São Caetano do Sul", "endereco": "Avenida Goiás, 1200", "lat": -23.6180, "lon": -46.5570}
+        ],
+        "OESTE_METROPOLITANO": [
+            {"nome": "Localiza Osasco - Centro", "endereco": "Avenida Dos Autonomistas, 2200", "lat": -23.5325, "lon": -46.7760},
+            {"nome": "Localiza Barueri - Alphaville", "endereco": "Alameda Rio Negro, 1030", "lat": -23.5075, "lon": -46.8530},
+            {"nome": "Localiza Carapicuíba", "endereco": "Avenida Inocêncio Seráfico, 1400", "lat": -23.5240, "lon": -46.8350},
+            {"nome": "Localiza Cotia - Granja Viana", "endereco": "Rodovia Raposo Tavares, km 22", "lat": -23.5902, "lon": -46.8341},
+            {"nome": "Localiza Itapevi", "endereco": "Avenida Feres Nacif Chaluppe, 700", "lat": -23.5481, "lon": -46.9324}
+        ],
+        "NORTE_LESTE_METROPOLITANO": [
+            {"nome": "Localiza Guarulhos - Aeroporto (Cumbica)", "endereco": "Rodovia Hélio Smidt, s/n", "lat": -23.4322, "lon": -46.4742},
+            {"nome": "Localiza Guarulhos - Centro", "endereco": "Avenida Antônio de Souza, 600", "lat": -23.4710, "lon": -46.5280},
+            {"nome": "Localiza Mogi das Cruzes", "endereco": "Avenida Vereador Narciso Yague Guimarães, 500", "lat": -23.5210, "lon": -46.1870},
+            {"nome": "Localiza Suzano", "endereco": "Rua General Francisco Glicério, 1200", "lat": -23.5430, "lon": -46.3120},
+            {"nome": "Localiza Taboão da Serra", "endereco": "Rodovia Régis Bittencourt, 1500", "lat": -23.6212, "lon": -46.7910}
+        ]
+    },
     "LITORAL": {
         "SUL": [
             {"nome": "Localiza Santos - Centro", "endereco": "Avenida Ana Costa, 200", "lat": -23.9554, "lon": -46.3315},
@@ -61,7 +82,13 @@ AGENCIAS_LOCALIZA_SP = {
             {"nome": "Localiza Campinas - Aeroporto Viracopos", "endereco": "Rodovia Santos Dumont, km 66", "lat": -23.0084, "lon": -47.1397},
             {"nome": "Localiza Campinas - Centro", "endereco": "Avenida Francisco Glicério, 1800", "lat": -22.9020, "lon": -47.0580},
             {"nome": "Localiza Indaiatuba", "endereco": "Avenida Visconde de Indaiatuba, 850", "lat": -23.1020, "lon": -47.2110},
-            {"nome": "Localiza Americana", "endereco": "Avenida Brasil, 1200", "lat": -22.7410, "lon": -47.3320}
+            {"nome": "Localiza Americana", "endereco": "Avenida Brasil, 1200", "lat": -22.7410, "lon": -47.3320},
+            {"nome": "Localiza Amparo", "endereco": "Avenida Waldyr Beira, 182 - Figueira", "lat": -22.7042, "lon": -46.7725},
+            {"nome": "Localiza Itatiba", "endereco": "Avenida 29 de Abril, 450", "lat": -23.0042, "lon": -46.8391}
+        ],
+        "CIRCUITO_DAS_AGUAS_BRAGANTINA": [
+            {"nome": "Localiza Bragança Paulista", "endereco": "Avenida Dom Pedro I, 1200", "lat": -22.9512, "lon": -46.5420},
+            {"nome": "Localiza Atibaia", "endereco": "Avenida Jerônimo de Camargo, 2500", "lat": -23.1189, "lon": -46.5510}
         ],
         "VALE_DO_PARAIBA": [
             {"nome": "Localiza São José dos Campos - Centro", "endereco": "Avenida Deputado Benedito Matarazzo, 5701", "lat": -23.2010, "lon": -45.8840},
@@ -85,7 +112,8 @@ AGENCIAS_LOCALIZA_SP = {
         ],
         "CENTRO_SUL_PAULISTA": [
             {"nome": "Localiza Piracicaba", "endereco": "Rua Edu Chaves, 1806", "lat": -22.7230, "lon": -47.6410},
-            {"nome": "Localiza Jundiaí", "endereco": "Avenida Nove de Julho, 1500", "lat": -23.1890, "lon": -46.8840}
+            {"nome": "Localiza Jundiaí", "endereco": "Avenida Nove de Julho, 1500", "lat": -23.1890, "lon": -46.8840},
+            {"nome": "Localiza Campo Limpo Paulista", "endereco": "Avenida Alfried Krupp, 1000", "lat": -23.2081, "lon": -46.7842}
         ]
     }
 }
@@ -96,8 +124,9 @@ AGENCIAS_LOCALIZA_SP = {
 class GeoService:
     LIMITES_PERIMETRO = {
         "Capital": (2.0, 20.0),
+        "Grande São Paulo": (2.0, 25.0),
         "Litoral": (2.0, 10.0),
-        "Interior": (2.0, 5.0)
+        "Interior": (2.0, 25.0) # Expandido para cobrir dinâmicas intermunicipais do interior
     }
 
     @staticmethod
@@ -122,18 +151,15 @@ class GeoService:
         Consome a API pública e segura do OpenStreetMap (Nominatim) para geocodificar
         o endereço recebido e retornar uma tupla (lat, lon) em float.
         """
-        # CTO Best Practice: Definindo um User-Agent exclusivo para respeitar a política de uso do OSM
         headers = {
             'User-Agent': 'LocalizaGeoServiceEngine/2.0 (senior_dev_system@empresa.com)'
         }
         
-        # Codifica o endereço para formato de URL válida (trata acentos, espaços, etc)
         endereco_encoded = urllib.parse.quote(endereco)
         url = f"https://nominatim.openstreetmap.org/search?q={endereco_encoded}&format=json&limit=1"
         
         try:
             req = urllib.request.Request(url, headers=headers)
-            # Timeout de 5s para evitar que a aplicação trave se a rede falhar
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode('utf-8'))
                 
@@ -144,7 +170,6 @@ class GeoService:
                 else:
                     return None
         except Exception as e:
-            # CTO Safe Gate: Captura qualquer erro de rede sem derrubar o microserviço
             print(f"[GEOCODING ERROR] Falha ao geocodificar o endereço '{endereco}': {e}")
             return None
 
@@ -155,6 +180,10 @@ class GeoService:
         for zona, agencias in AGENCIAS_LOCALIZA_SP["CAPITAL"].items():
             for ag in agencias:
                 lista_completa.append({"regiao": "Capital", "sub_regiao": zona, **ag})
+                
+        for microrregiao, agencias in AGENCIAS_LOCALIZA_SP["GRANDE_SAO_PAULO"].items():
+            for ag in agencias:
+                lista_completa.append({"regiao": "Grande São Paulo", "sub_regiao": microrregiao, **ag})
                 
         for costa, agencias in AGENCIAS_LOCALIZA_SP["LITORAL"].items():
             for ag in agencias:
@@ -195,22 +224,16 @@ if __name__ == "__main__":
     print("SISTEMA CORPORATIVO LOCALIZA GEOSERVICE - PIPELINE INICIADO")
     print("=" * 80)
     
-    # Endereços de testes (Podem ser CEPs ou endereços de texto livre)
+    # Endereços de testes cobrindo os novos limites
     enderecos_teste = [
-        # Teste 1: Candidato no Centro de São Paulo (Deverá cair na regra da Capital: 2km a 20km)
-        "Avenida Paulista, 1578, Bela Vista, São Paulo - SP",
-        
-        # Teste 2: Candidato em Santos (Deverá cair na regra do Litoral: 2km a 10km)
-        "Avenida Vicente de Carvalho, Boqueirão, Santos - SP",
-        
-        # Teste 3: Candidato no Interior - Campinas (Deverá cair na regra do Interior: 2km a 5km)
-        "Rua Barão de Jaguara, Centro, Campinas - SP"
+        "Amparo - SP, Brasil",
+        "Bragança Paulista - SP, Brasil",
+        "Cotia - SP, Brasil"
     ]
     
     for i, endereco in enumerate(enderecos_teste, 1):
         print(f"\n--- [EXECUÇÃO DO PIPELINE {i}] ---")
         print(f"Endereço de entrada: '{endereco}'")
-        print("Buscando coordenadas via Geocoding API...")
         
         coordenadas = GeoService.obter_coordenadas_por_endereco(endereco)
         
@@ -218,23 +241,19 @@ if __name__ == "__main__":
             lat, lon = coordenadas
             print(f"-> Coordenadas obtidas: Lat {lat:.6f} / Lon {lon:.6f}")
             
-            # Processamento matemático de perímetros
-            print("Processando regras de perímetro de negócios...")
             agencias_recomendadas = GeoService.filtrar_agencias_no_perimetro(lat, lon)
             
             if agencias_recomendadas:
                 print(f"-> SUCESSO: {len(agencias_recomendadas)} agência(s) encontrada(s) no perímetro!")
-                for index, ag in enumerate(agencias_recomendadas[:3], 1): # Exibe as top 3
+                for index, ag in enumerate(agencias_recomendadas[:3], 1): 
                     print(f"   [{index}] {ag['nome']}")
                     print(f"       Setor: {ag['regiao']} | Zona/Sub: {ag['sub_regiao']}")
                     print(f"       Distância: {ag['distancia_calculada']:.2f} km")
-                    print(f"       Endereço Filial: {ag['endereco']}")
             else:
-                print("-> ALERTA: Nenhuma filial encontrada dentro do raio permitido para esta região.")
+                print("-> ALERTA: Nenhuma filial encontrada dentro do raio permitido.")
         else:
-            print("-> ERRO: Não foi possível obter as coordenadas para o endereço fornecido.")
+            print("-> ERRO: Falha no Geocoding.")
             
-        # Espera de 1 segundo para respeitar o Rate Limit da API do Nominatim de forma elegante
         time.sleep(1)
         
     print("\n" + "=" * 80)

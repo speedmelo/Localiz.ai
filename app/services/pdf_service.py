@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import re
 from typing import Any
 import pdfplumber
 from app.core.logging import get_logger
@@ -54,3 +55,41 @@ async def extrair_texto_upload_pdf(upload_file: Any) -> str:
     # Pulo do gato Senior: pdfplumber é síncrono (I/O Bound). 
     # Usamos to_thread para rodar no pool do asyncio e manter a API com alta concorrência.
     return await asyncio.to_thread(extrair_texto_pdf, upload_file.file)
+
+
+def extrair_linha_endereco(texto_completo: str) -> str:
+    """
+    Recebe o texto retornado do PDF e isola a linha de endereço
+    focando em Rua, Bairro e Cidade, sem depender de CEP.
+    """
+    if not texto_completo:
+        return "Endereço não encontrado"
+
+    # 1. Busca por rótulos clássicos de endereço (ex: "Endereço: Rua da Servidão, 140...")
+    match_rotulo = re.search(
+        r'(?:endereço|endereco|localização|localizacao|residência|residencia):\s*(.*)', 
+        texto_completo, 
+        re.IGNORECASE
+    )
+    if match_rotulo:
+        linha = match_rotulo.group(1).split('\n')[0].strip()
+        if len(linha) > 5:
+            logger.info(f"Endereço localizado via rótulo: {linha}")
+            return linha
+
+    # 2. Fallback: Procura por linhas com palavras de logradouro (Rua, Av, Servidão) + SP/Cidade
+    padrao_logradouro = r'((?:rua|av|avenida|alameda|praça|rodovia|servidão|servidáo).*?(?:/|-)?\s*(?:sp|são paulo|sao paulo))'
+    match_rua = re.search(padrao_logradouro, texto_completo, re.IGNORECASE)
+    if match_rua:
+        linha_rua = match_rua.group(1).strip()
+        logger.info(f"Endereço localizado via padrão de logradouro: {linha_rua}")
+        return linha_rua
+
+    # 3. Terceiro fallback: Varre as linhas buscando nome da cidade com contexto
+    for linha in texto_completo.split('\n'):
+        if re.search(r'\b(amparo|campinas|são paulo|bragança|cotia|taboão|santos)\b', linha, re.IGNORECASE):
+            if any(termo in linha.lower() for termo in ['rua', 'av', 'bairro', ' nº', 'nº', '-', 'servidão']):
+                return linha.strip()
+
+    logger.warning("Não foi possível identificar um endereço válido no texto extraído.")
+    return "Endereço não identificado"

@@ -1,10 +1,11 @@
+# -*- coding: utf-8 -*-
 import json
 import os
 import re
 from typing import Any
 
 from google import genai
-from google.genai import types  # Importado para forçar o JSON estrito
+from google.genai import types
 from app.core.logging import get_logger
 
 logger = get_logger("ia_service")
@@ -73,10 +74,11 @@ Use obrigatoriamente os requisitos abaixo como referência principal:
 
 {LOCALIZA_REQUIREMENTS_PROMPT}
 
-REGRAS DE RACIOCÍNIO DE GEOLOCALIZAÇÃO (ABRANGÊNCIA EXPANDIDA):
-- O candidato pode NÃO ter preenchido o CEP. Procure ativamente no currículo por nomes de rua, avenidas, bairros, cidade ou estado.
-- Avalie a proximidade e a facilidade de deslocamento do candidato para as filiais operacionais da Localiza com base no endereço textual por extenso encontrado.
-- Caso o endereço mapeado por nome de rua indique alta distância ou inviabilidade de transporte para os turnos da vaga, aponte isso como um ponto fraco ou risco de logística na respectiva vaga.
+REGRAS DE EXTRAÇÃO E RACIOCÍNIO DE GEOLOCALIZAÇÃO:
+- O candidato pode NÃO ter preenchido o CEP. Procure ativamente no currículo pelo endereço completo contendo nome de rua, avenida, servidão, número, bairro, cidade e estado.
+- Extraia a linha inteira do endereço encontrado para a chave "endereco_extraido". Exemplo: "Rua da Servidão, 140 - Três Pontes, Amparo/SP".
+- Avalie a proximidade e a facilidade de deslocamento do candidato para as filiais operacionais da Localiza com base no endereço textual por extenso.
+- Caso o endereço mapeado por nome de rua indique alta distância ou inviabilidade de transporte para os turnos da vaga, aponte isso como ponto fraco ou risco de logística na respectiva vaga.
 
 REGRAS DE RACIOCÍNIO GERAIS:
 - Cada vaga possui necessidades específicas.
@@ -98,6 +100,7 @@ CURRÍCULO DO CANDIDATO:
 RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
 
 {{
+  "endereco_extraido": "linha exata do endereço encontrada no currículo (ex: Rua, Bairro, Cidade/UF)",
   "melhor_vaga": "",
   "ranking_vagas": [
     {{
@@ -153,7 +156,6 @@ RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
         prompt = cls.build_prompt(curriculo_texto)
 
         try:
-            # Configuração Sênior: Força o modelo a responder estritamente em JSON válido
             response = client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=prompt,
