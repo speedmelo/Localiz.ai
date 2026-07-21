@@ -114,7 +114,8 @@
             formData.append('file', file);
 
             try {
-                const response = await fetch('/api/v1/upload/candidates-matching', {
+                // Rota limpa corrigida e integrada ao backend
+                const response = await fetch('/api/v1/match-inteligente', {
                     method: 'POST',
                     body: formData
                 });
@@ -136,7 +137,6 @@
             document.getElementById('no-result').classList.add('hidden');
             const resultDiv = document.getElementById('result');
             resultDiv.classList.remove('hidden');
-            // Add more rendering logic as needed
             resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
         }
     </script>
