@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Localiz.ai - Talent Intelligence Dashboard</title>
-    <!-- Tailwind CSS para design moderno -->
+    <!-- Tailwind CSS para design moderno sem dor de cabeça -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -49,7 +49,7 @@
             </div>
             <div class="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
                 <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                <span class="text-sm font-semibold text-slate-300">FastAPI Online</span>
+                <span class="text-sm font-semibold text-slate-300">FastAPI Online v2.0</span>
             </div>
         </header>
 
@@ -119,7 +119,7 @@
                     <div id="result" class="hidden space-y-4">
                         <div class="bg-emerald-500/10 border border-emerald-500/20 p-4 rounded-lg">
                             <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Candidato Localizado</div>
-                            <div class="text-white font-bold text-lg mt-1" id="cand-endereco">Endereço: CEP Não Identificado</div>
+                            <div class="text-white font-bold text-lg mt-1" id="cand-endereco">Carregando...</div>
                         </div>
 
                         <h3 class="font-bold text-slate-300 mt-6">Filiais dentro do Perímetro Permitido:</h3>
@@ -137,41 +137,38 @@
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
 
-        // Handlers de Clique e Drag & Drop
         dropzone.addEventListener('click', () => fileInput.click());
 
+        // Suporte a Drag and Drop visual
         dropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            dropzone.classList.add('border-green-500');
+            dropzone.classList.add('border-green-500', 'bg-slate-800/50');
         });
 
         dropzone.addEventListener('dragleave', () => {
-            dropzone.classList.remove('border-green-500');
+            dropzone.classList.remove('border-green-500', 'bg-slate-800/50');
         });
 
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropzone.classList.remove('border-green-500');
+            dropzone.classList.remove('border-green-500', 'bg-slate-800/50');
             if (e.dataTransfer.files.length > 0) {
                 fileInput.files = e.dataTransfer.files;
-                processarUpload(e.dataTransfer.files[0]);
+                processarArquivo(e.dataTransfer.files[0]);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                processarUpload(e.target.files[0]);
+                processarArquivo(e.target.files[0]);
             }
         });
 
-        async function processarUpload(file) {
-            if (!file) return;
-
-            // Restaura o visual para carregamento
+        async function processarArquivo(file) {
+            // Transforma o estado visual para processando
+            document.getElementById('no-result').classList.remove('hidden');
             document.getElementById('result').classList.add('hidden');
-            const noResult = document.getElementById('no-result');
-            noResult.classList.remove('hidden');
-            noResult.innerHTML = `
+            document.getElementById('no-result').innerHTML = `
                 <div class="animate-spin text-green-500 text-3xl mb-3"><i class="fa-solid fa-circle-notch"></i></div>
                 <p class="text-slate-300 font-semibold">Extraindo dados e calculando perímetros...</p>
             `;
@@ -180,24 +177,19 @@
             formData.append('file', file);
 
             try {
-                // Rota padronizada v1 do FastAPI
-                const response = await fetch('/api/v1/upload/candidates-matching', {
+                // Rota corrigida apontando para a API v1 correta
+                const response = await fetch('/api/v1/match-inteligente', {
                     method: 'POST',
                     body: formData
                 });
                 
-                if (!response.ok) {
-                    throw new Error(`Erro de rede ou servidor: ${response.status}`);
-                }
-
                 const data = await response.json();
                 exibirResultados(data);
             } catch (err) {
                 console.error("Erro na comunicação com a API", err);
-                noResult.innerHTML = `
+                document.getElementById('no-result').innerHTML = `
                     <i class="fa-solid fa-triangle-exclamation text-red-500 text-3xl mb-3"></i>
-                    <p class="text-red-400">Falha ao processar arquivo no servidor.</p>
-                    <p class="text-xs text-slate-500 mt-1">Verifique os logs ou tente outro arquivo PDF.</p>
+                    <p class="text-red-400">Falha na integração com o servidor.</p>
                 `;
             }
         }
@@ -207,25 +199,24 @@
             const resultDiv = document.getElementById('result');
             resultDiv.classList.remove('hidden');
 
-            // Mapeamento resiliente de CEP
-            const cep = data.cep_candidato || data.cep || (data.data && data.data.cep) || "Não Identificado";
-            document.getElementById('cand-endereco').innerText = `Endereço: CEP ${cep}`;
+            const payloadData = data.data || data;
+            document.getElementById('cand-endereco').innerText = `Endereço: CEP ${payloadData.cep_candidato || "Identificado via IA"}`;
             
             const listContainer = document.getElementById('filiais-list');
             listContainer.innerHTML = '';
 
-            const filiais = data.filiais_recomendadas || (data.data && data.data.filiais_recomendadas) || [];
+            const filiais = payloadData.filiais_recomendadas || payloadData.filiais || [];
 
             if (filiais.length > 0) {
                 filiais.forEach((filial) => {
                     listContainer.innerHTML += `
                         <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 flex justify-between items-center">
                             <div>
-                                <h4 class="font-bold text-white">${filial.nome || 'Filial Localiza'}</h4>
-                                <span class="text-xs bg-slate-700 px-2.5 py-1 rounded text-slate-300 mt-1 inline-block">${filial.regiao || 'SP'} • ${filial.sub_regiao || 'Geral'}</span>
+                                <h4 class="font-bold text-white">${filial.nome || filial.filial}</h4>
+                                <span class="text-xs bg-slate-700 px-2.5 py-1 rounded text-slate-300 mt-1 inline-block">${filial.regiao || ''} • ${filial.sub_regiao || ''}</span>
                             </div>
                             <div class="text-right">
-                                <span class="text-lg font-black text-green-400">${filial.distancia_km ?? 'N/A'} km</span>
+                                <span class="text-lg font-black text-green-400">${filial.distancia_km || filial.distancia} km</span>
                                 <div class="text-xs text-slate-500">de distância</div>
                             </div>
                         </div>
