@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import io
 import json
 import os
 import re
@@ -6,6 +7,7 @@ from typing import Any
 
 from google import genai
 from google.genai import types
+from pypdf import PdfReader
 from app.core.logging import get_logger
 
 logger = get_logger("ia_service")
@@ -62,6 +64,20 @@ class AIService:
             "erro": "Falha ao interpretar resposta da IA",
             "resposta_bruta": texto,
         }
+
+    @staticmethod
+    def extrair_texto_de_pdf(pdf_bytes: bytes) -> str:
+        """Extrai o texto puro de um PDF enviado em bytes de forma segura."""
+        try:
+            pdf_file = io.BytesIO(pdf_bytes)
+            reader = PdfReader(pdf_file)
+            texto_extraido = ""
+            for page in reader.pages:
+                texto_extraido += (page.extract_text() or "") + "\n"
+            return texto_extraido.strip()
+        except Exception as e:
+            logger.error(f"Erro ao extrair texto do PDF: {e}")
+            raise ValueError("Não foi possível ler o arquivo PDF enviado. Certifique-se de que é um PDF válido.")
 
     @staticmethod
     def build_prompt(curriculo_texto: str) -> str:
@@ -121,7 +137,7 @@ RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
       "pontos_fortes": [],
       "pontos_fracos": [],
       "requisitos_atendidos": [],
-      "requisitos_nao_atendidos": [],
+      "requisitos_nao_identificados": [],
       "requisitos_nao_identificados": [],
       "justificativa": ""
     }},
@@ -132,7 +148,7 @@ RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
       "pontos_fortes": [],
       "pontos_fracos": [],
       "requisitos_atendidos": [],
-      "requisitos_nao_atendidos": [],
+      "requisitos_nao_identificados": [],
       "requisitos_nao_identificados": [],
       "justificativa": ""
     }}
@@ -151,9 +167,15 @@ RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
 """
 
     @classmethod
-    async def analisar_candidato(cls, curriculo_texto: str) -> dict[str, Any]:
+    async def analisar_candidato_por_pdf(cls, pdf_bytes: bytes, filename: str) -> dict[str, Any]:
+        """Método principal chamado pelo main.py para receber bytes do PDF, extrair o texto e enviar para a IA."""
+        texto_curriculo = cls.extrair_texto_de_pdf(pdf_bytes)
+        
+        if not texto_curriculo:
+            raise ValueError("O PDF enviado está vazio ou não foi possível extrair texto dele.")
+
         client = cls.get_client()
-        prompt = cls.build_prompt(curriculo_texto)
+        prompt = cls.build_prompt(texto_curriculo)
 
         try:
             response = client.models.generate_content(
@@ -166,7 +188,7 @@ RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
 
             texto_resposta = response.text or ""
             resultado = cls.safe_json(texto_resposta)
-            logger.info("Análise de candidato concluída com sucesso.")
+            logger.info(f"Análise de candidato do arquivo {filename} concluída com sucesso.")
             return resultado
 
         except Exception as exc:
