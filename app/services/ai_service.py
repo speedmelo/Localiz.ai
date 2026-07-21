@@ -3,7 +3,7 @@ import io
 import json
 import os
 import re
-from typing import Any
+from typing import Any, List, Optional
 
 from google import genai
 from google.genai import types
@@ -80,7 +80,11 @@ class AIService:
             raise ValueError("Não foi possível ler o arquivo PDF enviado. Certifique-se de que é um PDF válido.")
 
     @staticmethod
-    def build_prompt(curriculo_texto: str) -> str:
+    def build_prompt(curriculo_texto: str, vagas_customizadas: Optional[List[Any]] = None) -> str:
+        req_context = LOCALIZA_REQUIREMENTS_PROMPT
+        if vagas_customizadas:
+            req_context += f"\n\nVAGAS ADICIONAIS FORNECIDAS NA REQUISIÇÃO:\n{json.dumps(vagas_customizadas, ensure_ascii=False)}"
+
         return f"""
 Você é uma IA especialista em Talent Intelligence, recrutamento, seleção e análise de aderência para vagas da Localiza.
 
@@ -88,7 +92,7 @@ Sua função é analisar o currículo do candidato e identificar qual vaga possu
 
 Use obrigatoriamente os requisitos abaixo como referência principal:
 
-{LOCALIZA_REQUIREMENTS_PROMPT}
+{req_context}
 
 REGRAS DE EXTRAÇÃO E RACIOCÍNIO DE GEOLOCALIZAÇÃO:
 - O candidato pode NÃO ter preenchido o CEP. Procure ativamente no currículo pelo endereço completo contendo nome de rua, avenida, servidão, número, bairro, cidade e estado.
@@ -137,7 +141,7 @@ RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
       "pontos_fortes": [],
       "pontos_fracos": [],
       "requisitos_atendidos": [],
-      "requisitos_nao_identificados": [],
+      "requisitos_nao_atendidos": [],
       "requisitos_nao_identificados": [],
       "justificativa": ""
     }},
@@ -148,7 +152,7 @@ RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
       "pontos_fortes": [],
       "pontos_fracos": [],
       "requisitos_atendidos": [],
-      "requisitos_nao_identificados": [],
+      "requisitos_nao_atendidos": [],
       "requisitos_nao_identificados": [],
       "justificativa": ""
     }}
@@ -166,16 +170,13 @@ RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
 }}
 """
 
-    @classmethod
-    async def analisar_candidato_por_pdf(cls, pdf_bytes: bytes, filename: str) -> dict[str, Any]:
-        """Método principal chamado pelo main.py para receber bytes do PDF, extrair o texto e enviar para a IA."""
-        texto_curriculo = cls.extrair_texto_de_pdf(pdf_bytes)
-        
-        if not texto_curriculo:
-            raise ValueError("O PDF enviado está vazio ou não foi possível extrair texto dele.")
+    async def analisar_candidato(self, curriculo: str, vagas: Optional[List[Any]] = None) -> dict[str, Any]:
+        """Método principal para requisições via JSON/Payload (usado no main.py e match.py)."""
+        if not curriculo or not curriculo.strip():
+            raise ValueError("O conteúdo do currículo não pode estar vazio.")
 
-        client = cls.get_client()
-        prompt = cls.build_prompt(texto_curriculo)
+        client = self.get_client()
+        prompt = self.build_prompt(curriculo_texto=curriculo, vagas_customizadas=vagas)
 
         try:
             response = client.models.generate_content(
@@ -187,13 +188,19 @@ RETORNE APENAS UM JSON VÁLIDO SEGUINDO EXATAMENTE A ESTRUTURA ABAIXO:
             )
 
             texto_resposta = response.text or ""
-            resultado = cls.safe_json(texto_resposta)
-            logger.info(f"Análise de candidato do arquivo {filename} concluída com sucesso.")
+            resultado = self.safe_json(texto_resposta)
+            logger.info("Análise de candidato por texto/JSON concluída com sucesso.")
             return resultado
 
         except Exception as exc:
             logger.exception("Erro ao analisar candidato com Gemini.")
-            return {
-                "erro": "Erro ao analisar candidato",
-                "detalhe": str(exc),
-            }
+            raise RuntimeError(f"Erro na comunicação com a IA Gemini: {str(exc)}")
+
+    async def analisar_candidato_por_pdf(self, pdf_bytes: bytes, filename: str) -> dict[str, Any]:
+        """Método auxiliar para requisições com upload de arquivo PDF."""
+        texto_curriculo = self.extrair_texto_de_pdf(pdf_bytes)
+        
+        if not texto_curriculo:
+            raise ValueError("O PDF enviado está vazio ou não foi possível extrair texto dele.")
+
+        return await self.analisar_candidato(curriculo=texto_curriculo)
