@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Localiz.ai - Talent Intelligence Dashboard</title>
-    <!-- Tailwind CSS para design moderno sem dor de cabeça -->
+    
+    <!-- FAVICON .ico -->
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -20,13 +23,13 @@
             
             <nav class="space-y-2">
                 <a href="#" class="flex items-center gap-3 px-4 py-3 bg-green-500 text-slate-950 rounded-lg font-medium transition">
-                    <i class="fa-solid fa-chart-pie"></i> Dashboard
+                    <i class="fa-solid fa-chart-pie"></i> Visão Geral
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-100 rounded-lg transition">
                     <i class="fa-solid fa-user-tie"></i> Candidatos
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-100 rounded-lg transition">
-                    <i class="fa-solid fa-store"></i> Filiais SP
+                    <i class="fa-solid fa-store"></i> Página de Vagas
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-slate-100 rounded-lg transition">
                     <i class="fa-solid fa-sliders"></i> Configurações
@@ -49,7 +52,7 @@
             </div>
             <div class="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-lg border border-slate-800">
                 <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                <span class="text-sm font-semibold text-slate-300">FastAPI Online v2.0</span>
+                <span class="text-sm font-semibold text-slate-300">FastAPI Online</span>
             </div>
         </header>
 
@@ -134,40 +137,17 @@
     </main>
 
     <script>
+        // Integração Simples via JS Fetch API com o seu backend FastAPI
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
 
         dropzone.addEventListener('click', () => fileInput.click());
 
-        // Suporte a Drag and Drop visual
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropzone.classList.add('border-green-500', 'bg-slate-800/50');
-        });
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-        dropzone.addEventListener('dragleave', () => {
-            dropzone.classList.remove('border-green-500', 'bg-slate-800/50');
-        });
-
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropzone.classList.remove('border-green-500', 'bg-slate-800/50');
-            if (e.dataTransfer.files.length > 0) {
-                fileInput.files = e.dataTransfer.files;
-                processarArquivo(e.dataTransfer.files[0]);
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                processarArquivo(e.target.files[0]);
-            }
-        });
-
-        async function processarArquivo(file) {
             // Transforma o estado visual para processando
-            document.getElementById('no-result').classList.remove('hidden');
-            document.getElementById('result').classList.add('hidden');
             document.getElementById('no-result').innerHTML = `
                 <div class="animate-spin text-green-500 text-3xl mb-3"><i class="fa-solid fa-circle-notch"></i></div>
                 <p class="text-slate-300 font-semibold">Extraindo dados e calculando perímetros...</p>
@@ -177,7 +157,7 @@
             formData.append('file', file);
 
             try {
-                // Rota corrigida apontando para a API v1 correta
+                // Rota corrigida
                 const response = await fetch('/api/v1/match-inteligente', {
                     method: 'POST',
                     body: formData
@@ -192,31 +172,28 @@
                     <p class="text-red-400">Falha na integração com o servidor.</p>
                 `;
             }
-        }
+        });
 
         function exibirResultados(data) {
             document.getElementById('no-result').classList.add('hidden');
             const resultDiv = document.getElementById('result');
             resultDiv.classList.remove('hidden');
 
-            const payloadData = data.data || data;
-            document.getElementById('cand-endereco').innerText = `Endereço: CEP ${payloadData.cep_candidato || "Identificado via IA"}`;
+            document.getElementById('cand-endereco').innerText = `Endereço: CEP ${data.cep_candidato || "Não Identificado"}`;
             
             const listContainer = document.getElementById('filiais-list');
             listContainer.innerHTML = '';
 
-            const filiais = payloadData.filiais_recomendadas || payloadData.filiais || [];
-
-            if (filiais.length > 0) {
-                filiais.forEach((filial) => {
+            if (data.filiais_recomendadas && data.filiais_recomendadas.length > 0) {
+                data.filiais_recomendadas.forEach((filial) => {
                     listContainer.innerHTML += `
                         <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 flex justify-between items-center">
                             <div>
-                                <h4 class="font-bold text-white">${filial.nome || filial.filial}</h4>
-                                <span class="text-xs bg-slate-700 px-2.5 py-1 rounded text-slate-300 mt-1 inline-block">${filial.regiao || ''} • ${filial.sub_regiao || ''}</span>
+                                <h4 class="font-bold text-white">${filial.nome}</h4>
+                                <span class="text-xs bg-slate-700 px-2.5 py-1 rounded text-slate-300 mt-1 inline-block">${filial.regiao} • ${filial.sub_regiao}</span>
                             </div>
                             <div class="text-right">
-                                <span class="text-lg font-black text-green-400">${filial.distancia_km || filial.distancia} km</span>
+                                <span class="text-lg font-black text-green-400">${filial.distancia_km} km</span>
                                 <div class="text-xs text-slate-500">de distância</div>
                             </div>
                         </div>
