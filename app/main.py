@@ -1,8 +1,8 @@
 import logging
-from fastapi import FastAPI, Depends, HTTPException, Request, status, WebSocket
+from fastapi import FastAPI, Depends, HTTPException, Request, status, WebSocket, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse  # Adicionado FileResponse
-from fastapi.staticfiles import StaticFiles  # Adicionado para servir CSS/JS se necessário
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import time
 import uuid
@@ -26,11 +26,6 @@ from app.api.v1.router import api_router
 # ==========================================
 from app.dependencies import get_ai_service
 from app.services.ai_service import AIService
-
-# ==========================================
-# SCHEMAS
-# ==========================================
-from app.schemas.match_schema import MatchRequest, MatchResponse
 
 # ==========================================
 # LIFESPAN
@@ -77,7 +72,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Servir arquivos estáticos apenas se a pasta existir (evita quebrar o boot se não houver CSS/JS externos)
+# Servir arquivos estáticos apenas se a pasta existir
 if os.path.exists("app/static"):
     app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -125,16 +120,15 @@ app.include_router(api_router, prefix="/api/v1")
 
 
 # ==========================================
-# MATCH INTELIGENTE (Endpoint Principal)
+# MATCH INTELIGENTE (Endpoint Principal - Upload PDF)
 # ==========================================
 @app.post(
     "/api/v1/match-inteligente",
-    response_model=MatchResponse,
     status_code=status.HTTP_200_OK,
     tags=["Match IA"]
 )
 async def match_inteligente(
-    payload: MatchRequest,
+    file: UploadFile = File(...),
     ai_service: AIService = Depends(get_ai_service)
 ):
     start_time = time.perf_counter()
@@ -142,20 +136,25 @@ async def match_inteligente(
     logger = get_logger()
 
     try:
-        logger.info(f"[{request_id}] Iniciando análise de candidato", extra={"candidato_id": payload.candidato_id})
+        logger.info(f"[{request_id}] Recebido arquivo {file.filename} para análise")
 
+        # 1. Ler os bytes do arquivo PDF enviado
+        pdf_bytes = await file.read()
+
+        # 2. Executar a análise do PDF com o Gemini
         resultado = await asyncio.wait_for(
-            ai_service.analisar_candidato(
-                curriculo=payload.curriculo,
-                vagas=payload.vagas
+            ai_service.analisar_candidato_por_pdf(
+                pdf_bytes=pdf_bytes,
+                filename=file.filename or "curriculo.pdf"
             ),
             timeout=45.0
         )
 
         processing_time = round((time.perf_counter() - start_time) * 1000, 2)
 
-        logger.info(f"[{request_id}] Análise concluída com sucesso", extra={"processing_time_ms": processing_time})
+        logger.info(f"[{request_id}] Análise concluída em {processing_time}ms")
 
+        # 3. Notificar via WebSocket
         await manager.send_to_room({
             "type": "analysis_completed",
             "request_id": request_id,
@@ -163,25 +162,25 @@ async def match_inteligente(
             "processing_time_ms": processing_time
         }, room="analyses")
 
-        return MatchResponse(
-            success=True,
-            data=resultado,
-            processing_time_ms=processing_time,
-            model_version=settings.MODEL_NAME,
-            request_id=request_id
-        )
+        # 4. Retorno estruturado para o Dashboard
+        return {
+            "success": True,
+            "data": resultado,
+            "processing_time_ms": processing_time,
+            "request_id": request_id
+        }
 
     except asyncio.TimeoutError:
         logger.error(f"[{request_id}] Timeout na análise IA")
-        raise HTTPException(status_code=408, detail="Tempo limite excedido na análise")
+        raise HTTPException(status_code=408, detail="Tempo limite excedido na análise do arquivo")
 
     except ValueError as e:
-        logger.warning(f"[{request_id}] Erro de validação: {str(e)}")
+        logger.warning(f"[{request_id}] Erro de validação/PDF: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
     except Exception as e:
-        logger.error(f"[{request_id}] Erro inesperado", exc_info=True)
-        raise HTTPException(status_code=500, detail="Falha ao processar análise com IA")
+        logger.error(f"[{request_id}] Erro inesperado no processamento do PDF", exc_info=True)
+        raise HTTPException(status_code=500, detail="Falha ao processar análise do currículo")
 
 
 # ==========================================
@@ -203,7 +202,6 @@ async def health():
 # ==========================================
 @app.get("/", tags=["UI"])
 async def root():
-    # Caminho do index que vimos na árvore de arquivos do seu projeto
     html_path = "app/templates/index.html"
     if os.path.exists(html_path):
         return FileResponse(html_path)
